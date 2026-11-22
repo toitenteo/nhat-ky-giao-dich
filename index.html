@@ -1,0 +1,2496 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>TradeLog — Nhật Ký Giao Dịch Di Động</title>
+
+  <!-- Phông chữ Inter thân thiện với số liệu tài chính và màn hình di động -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Thư viện Tailwind CSS giúp xây dựng giao diện responsive nhanh và đồng bộ -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Thư viện Chart.js để vẽ đường cong vốn và các biểu đồ phân tích trực quan -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Thư viện biểu tượng Lucide tối giản, sắc nét cho giao diện mobile -->
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <style>
+    /* =========================================================================
+       PHẦN CSS TÙY CHỈNH
+       Thiết lập bảng màu, thanh cuộn mượt, vùng an toàn (safe-area) cho điện thoại
+       ========================================================================= */
+    /* Bảng màu giao diện nền sáng (Light Theme): nền xám sáng dịu mắt, thẻ trắng nổi bật */
+    :root {
+      color-scheme: light;
+      --bg-main: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-elevated: #f8fafc;
+      --border-subtle: #e2e8f0;
+      --accent-emerald: #059669;
+      --accent-rose: #e11d48;
+      --accent-indigo: #4f46e5;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      /* Đổi chữ mặc định sang màu xám đen đậm để đọc rõ trên nền sáng */
+      background-color: var(--bg-main);
+      color: #0f172a;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Đảm bảo kích thước vùng chạm tối thiểu trên điện thoại để dễ bấm */
+    input, select, textarea, button {
+      font-family: inherit;
+    }
+
+    /* Giao diện trường nhập liệu nền sáng: nền xám nhạt, viền rõ, chữ đậm dễ nhìn trên điện thoại */
+    .field-input {
+      width: 100%;
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #0f172a;
+      border-radius: 0.75rem;
+      padding: 0.7rem 0.85rem;
+      font-size: 0.9375rem;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    }
+
+    .field-input:focus {
+      outline: none;
+      background-color: #ffffff;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 0.35rem;
+      letter-spacing: 0.01em;
+    }
+
+    /* Thẻ nội dung (Card) chuẩn Fintech nền trắng kèm bóng đổ mềm tạo chiều sâu */
+    .glass-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 1rem;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    }
+
+    /* Ẩn thanh cuộn ngang cho các dải nút lọc trên mobile */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Khoảng trống dưới cùng để nội dung không bị thanh điều hướng (Bottom Nav) che khuất */
+    .main-content-pad {
+      padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .bottom-nav-safe {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Định dạng văn bản kết quả phân tích từ AI trong cửa sổ Popup nền sáng */
+    .ai-markdown h1, .ai-markdown h2, .ai-markdown h3 {
+      color: #0f172a;
+      font-weight: 700;
+      margin-top: 1rem;
+      margin-bottom: 0.4rem;
+    }
+    .ai-markdown h3 { font-size: 1rem; color: #4338ca; }
+    .ai-markdown p { margin-bottom: 0.6rem; line-height: 1.6; color: #334155; font-size: 0.9rem; }
+    .ai-markdown ul, .ai-markdown ol { margin-left: 1.15rem; margin-bottom: 0.7rem; color: #334155; font-size: 0.9rem; }
+    .ai-markdown li { margin-bottom: 0.35rem; line-height: 1.55; }
+    .ai-markdown strong { color: #0f172a; font-weight: 600; }
+    .ai-markdown code {
+      background: #f1f5f9;
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.3rem;
+      font-size: 0.82rem;
+      color: #047857;
+    }
+
+    /* Hiệu ứng chuyển tab mượt mà */
+    .tab-panel {
+      display: none;
+      animation: fadeSlideUp 0.18s ease-out;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-indigo-500/20 selection:text-indigo-900">
+
+  <!-- =========================================================================
+       KHUNG ỨNG DỤNG CHÍNH (TỐI ƯU KHUNG DI ĐỘNG, TỰ CĂN GIỮA TRÊN DESKTOP)
+       ========================================================================= -->
+  <div class="mx-auto max-w-2xl min-h-screen flex flex-col relative">
+
+    <!-- THANH TIÊU ĐỀ CỐ ĐỊNH PHÍA TRÊN (TOP HEADER) -->
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+          <i data-lucide="candlestick-chart" class="w-5 h-5 text-white"></i>
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-base font-bold tracking-tight text-slate-900 truncate leading-tight">TradeLog</h1>
+          <p class="text-[11px] text-slate-500 truncate">Lưu cục bộ trên thiết bị</p>
+        </div>
+      </div>
+
+      <!-- Nút gọi nhanh AI phân tích nhật ký ngay trên thanh tiêu đề -->
+      <button id="btnHeaderAI" type="button"
+        class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-semibold shadow-md shadow-indigo-600/25 transition shrink-0">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        <span>Phân tích AI</span>
+      </button>
+    </header>
+
+    <!-- THÔNG BÁO DỮ LIỆU MẪU (Chỉ hiển thị khi người dùng đang xem bộ dữ liệu mẫu) -->
+    <div id="sampleBanner" class="hidden mx-4 mt-3 px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 text-xs text-amber-900 leading-snug">
+        <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+        <span>Đang hiển thị dữ liệu mẫu để xem trước biểu đồ.</span>
+      </div>
+      <button id="btnClearSample" type="button"
+        class="shrink-0 px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-semibold transition">
+        Xóa mẫu
+      </button>
+    </div>
+
+    <!-- VÙNG NỘI DUNG CÁC TAB -->
+    <main class="flex-1 px-4 pt-4 main-content-pad">
+
+      <!-- =====================================================================
+           TAB 1: GHI CHÉP GIAO DỊCH (TRADE ENTRY FORM)
+           Các trường không lặp lại dùng ô nhập, trường lặp lại dùng ô chọn
+           ===================================================================== -->
+      <section id="tab-entry" class="tab-panel active">
+        <!-- Thanh báo hiệu khi đang ở chế độ Chỉnh sửa lệnh cũ -->
+        <div id="editModeBanner" class="hidden mb-3 px-3.5 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-between">
+          <div class="flex items-center gap-2 text-xs font-medium text-indigo-800">
+            <i data-lucide="pencil" class="w-4 h-4 text-indigo-600"></i>
+            <span id="editModeText">Đang chỉnh sửa giao dịch</span>
+          </div>
+          <button id="btnCancelEdit" type="button" class="text-xs font-semibold text-indigo-700 hover:text-indigo-900 underline">
+            Hủy sửa
+          </button>
+        </div>
+
+        <form id="tradeForm" class="space-y-4">
+          <input type="hidden" id="tradeId" value="" />
+
+          <!-- KHỐI 1: THÔNG TIN TÀI SẢN & CHIỀU LỆNH -->
+          <div class="glass-card p-4 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="file-plus-2" class="w-4 h-4 text-indigo-600"></i>
+                Thông tin lệnh
+              </h2>
+              <span class="text-[11px] text-slate-400">* Bắt buộc</span>
+            </div>
+
+            <!-- Chọn chiều giao dịch dạng 2 nút bấm lớn thân thiện ngón tay cái -->
+            <div>
+              <span class="field-label">Chiều giao dịch *</span>
+              <div class="grid grid-cols-2 gap-2.5">
+                <button type="button" id="btnDirLong" data-dir="Long"
+                  class="dir-btn py-2.5 px-3 rounded-xl font-semibold text-sm border transition flex items-center justify-center gap-1.5 bg-emerald-50 border-emerald-500 text-emerald-700">
+                  <i data-lucide="trending-up" class="w-4 h-4"></i> Mua (Long)
+                </button>
+                <button type="button" id="btnDirShort" data-dir="Short"
+                  class="dir-btn py-2.5 px-3 rounded-xl font-semibold text-sm border transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-500">
+                  <i data-lucide="trending-down" class="w-4 h-4"></i> Bán (Short)
+                </button>
+              </div>
+              <input type="hidden" id="tradeDirection" value="Long" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Mã tài sản: không lặp cố định -> ô nhập văn bản -->
+              <div>
+                <label for="tradeSymbol" class="field-label">Mã tài sản *</label>
+                <input id="tradeSymbol" type="text" required placeholder="VD: BTC/USDT, XAU, FPT"
+                  class="field-input uppercase" autocomplete="off" />
+              </div>
+
+              <!-- Loại tài sản: lặp lại -> ô chọn (Select) -->
+              <div>
+                <label for="tradeAssetClass" class="field-label">Loại tài sản *</label>
+                <select id="tradeAssetClass" class="field-input">
+                  <option value="Crypto">Crypto</option>
+                  <option value="Forex">Forex</option>
+                  <option value="Chứng khoán VN">Chứng khoán VN</option>
+                  <option value="Chứng khoán Mỹ">Chứng khoán Mỹ</option>
+                  <option value="Hàng hóa">Hàng hóa (Vàng/Dầu)</option>
+                  <option value="Chỉ số">Chỉ số (Indices)</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Trạng thái lệnh: lặp lại -> ô chọn -->
+              <div>
+                <label for="tradeStatus" class="field-label">Trạng thái lệnh</label>
+                <select id="tradeStatus" class="field-input">
+                  <option value="Closed">Đã đóng (Closed)</option>
+                  <option value="Open">Đang mở (Open)</option>
+                </select>
+              </div>
+
+              <!-- Khung thời gian: lặp lại -> ô chọn -->
+              <div>
+                <label for="tradeTimeframe" class="field-label">Khung thời gian</label>
+                <select id="tradeTimeframe" class="field-input">
+                  <option value="M5">M5</option>
+                  <option value="M15" selected>M15</option>
+                  <option value="M30">M30</option>
+                  <option value="H1">H1</option>
+                  <option value="H4">H4</option>
+                  <option value="D1">D1</option>
+                  <option value="W1">W1</option>
+                  <option value="M1">M1</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="tradeEntryTime" class="field-label">Thời gian vào lệnh *</label>
+                <input id="tradeEntryTime" type="datetime-local" required class="field-input" />
+              </div>
+              <div>
+                <label for="tradeExitTime" class="field-label">Thời gian thoát lệnh</label>
+                <input id="tradeExitTime" type="datetime-local" class="field-input" />
+              </div>
+            </div>
+          </div>
+
+          <!-- KHỐI 2: GIÁ, QUẢN TRỊ RỦI RO & LÃI/LỖ -->
+          <div class="glass-card p-4 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="calculator" class="w-4 h-4 text-emerald-600"></i>
+                Giá & Quản trị vốn
+              </h2>
+              <!-- Hiển thị nhanh tỷ lệ R:R dự kiến & R thực tế khi người dùng gõ -->
+              <div id="liveMetricsBadge" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                R:R --
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="tradeEntryPrice" class="field-label">Giá vào (Entry) *</label>
+                <input id="tradeEntryPrice" type="number" step="any" required placeholder="0.00" class="field-input" />
+              </div>
+              <div>
+                <label for="tradeExitPrice" class="field-label">Giá thoát (Exit)</label>
+                <input id="tradeExitPrice" type="number" step="any" placeholder="0.00" class="field-input" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="tradeSL" class="field-label">Cắt lỗ (Stop Loss)</label>
+                <input id="tradeSL" type="number" step="any" placeholder="0.00" class="field-input" />
+              </div>
+              <div>
+                <label for="tradeTP" class="field-label">Chốt lời (Take Profit)</label>
+                <input id="tradeTP" type="number" step="any" placeholder="0.00" class="field-input" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="tradeSize" class="field-label">Khối lượng / Lot / SL *</label>
+                <input id="tradeSize" type="number" step="any" required placeholder="VD: 0.1, 100" class="field-input" />
+              </div>
+              <div>
+                <label for="tradeFees" class="field-label">Phí / Hoa hồng / Swap</label>
+                <input id="tradeFees" type="number" step="any" placeholder="0" value="0" class="field-input" />
+              </div>
+            </div>
+
+            <!-- Ô Lãi/Lỗ thực tế: có nút tự tính theo (Exit - Entry) * Size - Fees hoặc nhập tay -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label for="tradePnL" class="field-label mb-0">Lãi / Lỗ ròng thực tế (<span class="currency-unit">USD</span>)</label>
+                <button type="button" id="btnAutoCalcPnL"
+                  class="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                  <i data-lucide="wand-2" class="w-3 h-3"></i> Tự tính từ giá
+                </button>
+              </div>
+              <input id="tradePnL" type="number" step="any" placeholder="Số dương (+) là lãi, số âm (-) là lỗ"
+                class="field-input font-semibold" />
+              <p class="text-[11px] text-slate-500 mt-1">
+                Tự động cập nhật khi đủ Giá vào, Giá thoát và Khối lượng; bạn vẫn có thể sửa trực tiếp theo sao kê sàn.
+              </p>
+            </div>
+          </div>
+
+          <!-- KHỐI 3: CHIẾN LƯỢC, TÂM LÝ & GHI CHÚ -->
+          <div class="glass-card p-4 space-y-3.5">
+            <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="brain" class="w-4 h-4 text-purple-600"></i>
+              Chiến lược & Tâm lý
+            </h2>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="tradeStrategy" class="field-label">Chiến lược / Setup</label>
+                <select id="tradeStrategy" class="field-input">
+                  <option value="Breakout">Breakout (Phá vỡ)</option>
+                  <option value="Pullback">Pullback / Retest</option>
+                  <option value="Trend Following">Trend Following</option>
+                  <option value="Price Action">Price Action</option>
+                  <option value="SMC / ICT">SMC / ICT</option>
+                  <option value="Mean Reversion">Đảo chiều (Reversion)</option>
+                  <option value="Tin tức">Giao dịch tin tức</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="tradeSession" class="field-label">Phiên giao dịch</label>
+                <select id="tradeSession" class="field-input">
+                  <option value="Phiên Á">Phiên Á (Asia)</option>
+                  <option value="Phiên Âu">Phiên Âu (London)</option>
+                  <option value="Phiên Mỹ">Phiên Mỹ (New York)</option>
+                  <option value="Giao phiên Âu-Mỹ">Giao phiên Âu - Mỹ</option>
+                  <option value="24/7 / Khác">24/7 / Khác</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="tradeEmotion" class="field-label">Tâm lý giao dịch</label>
+                <select id="tradeEmotion" class="field-input">
+                  <option value="Bình tĩnh / Kỷ luật">Bình tĩnh / Kỷ luật</option>
+                  <option value="FOMO">FOMO (Sợ lỡ cơ hội)</option>
+                  <option value="Sợ hãi / Lo lắng">Sợ hãi / Lo lắng</option>
+                  <option value="Tham lam">Tham lam</option>
+                  <option value="Trả thù (Revenge)">Trả thù thị trường</option>
+                  <option value="Tự tin quá mức">Tự tin quá mức</option>
+                  <option value="Mệt mỏi / Mất tập trung">Mệt mỏi / Mất tập trung</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="tradePlan" class="field-label">Tuân thủ kế hoạch</label>
+                <select id="tradePlan" class="field-input">
+                  <option value="Tuân thủ 100%">Tuân thủ 100%</option>
+                  <option value="Tuân thủ một phần">Tuân thủ một phần</option>
+                  <option value="Vi phạm kỷ luật">Vi phạm kỷ luật</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label for="tradeNotes" class="field-label">Ghi chú & Bài học rút ra</label>
+              <textarea id="tradeNotes" rows="3" placeholder="Lý do vào lệnh, điều làm tốt, sai lầm cần tránh lần sau..."
+                class="field-input resize-none"></textarea>
+            </div>
+          </div>
+
+          <!-- NÚT LƯU GIAO DỊCH -->
+          <button id="btnSubmitTrade" type="submit"
+            class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            <span id="btnSubmitText">Lưu vào Nhật Ký</span>
+          </button>
+        </form>
+      </section>
+
+      <!-- =====================================================================
+           TAB 2: CHỈ SỐ ĐÁNH GIÁ & BIỂU ĐỒ TRỰC QUAN (ANALYTICS DASHBOARD)
+           ===================================================================== -->
+      <section id="tab-analytics" class="tab-panel space-y-4">
+        <!-- Thẻ tổng quan vốn & lợi nhuận nổi bật -->
+        <div class="glass-card p-4 bg-gradient-to-br from-white via-white to-indigo-50 border-indigo-200/80">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <p class="text-xs font-medium text-slate-400">Tổng Vốn Hiện Tại</p>
+              <p id="statCurrentEquity" class="text-2xl font-extrabold text-slate-900 mt-0.5 tracking-tight">0</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs font-medium text-slate-400">Lãi / Lỗ Ròng</p>
+              <p id="statNetPnL" class="text-lg font-bold text-emerald-600 mt-0.5">+0</p>
+              <p id="statROI" class="text-[11px] font-semibold text-slate-400">0.00%</p>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+            <span>Vốn ban đầu: <strong id="statInitCap" class="text-slate-800">0</strong></span>
+            <span>Lệnh đã đóng: <strong id="statTotalClosed" class="text-slate-800">0</strong></span>
+          </div>
+        </div>
+
+        <!-- Nút gọi AI phân tích ngay trong tab Chỉ số -->
+        <button id="btnDashboardAI" type="button"
+          class="w-full py-3 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-semibold text-sm transition flex items-center justify-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4 text-indigo-600"></i>
+          <span>Nhờ AI phân tích hành vi & chỉ số giao dịch</span>
+        </button>
+
+        <!-- Lưới các chỉ số tiêu chuẩn của Nhật ký giao dịch chuyên nghiệp -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="glass-card p-3.5">
+            <p class="text-[11px] font-medium text-slate-400">Tỷ lệ thắng (Win Rate)</p>
+            <p id="statWinRate" class="text-xl font-bold text-slate-900 mt-1">0%</p>
+            <p id="statWLCount" class="text-[11px] text-slate-400 mt-0.5">0 Thắng · 0 Thua</p>
+          </div>
+
+          <div class="glass-card p-3.5">
+            <p class="text-[11px] font-medium text-slate-400">Profit Factor</p>
+            <p id="statProfitFactor" class="text-xl font-bold text-slate-900 mt-1">0.00</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Mục tiêu &gt; 1.50</p>
+          </div>
+
+          <div class="glass-card p-3.5">
+            <p class="text-[11px] font-medium text-slate-400">Kỳ vọng (Expectancy)</p>
+            <p id="statExpectancy" class="text-xl font-bold text-slate-900 mt-1">0</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Lãi/lỗ TB mỗi lệnh</p>
+          </div>
+
+          <div class="glass-card p-3.5">
+            <p class="text-[11px] font-medium text-slate-400">Max Drawdown</p>
+            <p id="statMaxDD" class="text-xl font-bold text-rose-600 mt-1">0%</p>
+            <p id="statMaxDDVal" class="text-[11px] text-slate-400 mt-0.5">Sụt giảm tối đa</p>
+          </div>
+
+          <div class="glass-card p-3.5">
+            <p class="text-[11px] font-medium text-slate-400">Lãi TB / Lỗ TB (Payoff)</p>
+            <p id="statPayoff" class="text-xl font-bold text-slate-900 mt-1">0.00</p>
+            <p id="statAvgWinLoss" class="text-[11px] text-slate-400 mt-0.5 truncate">+0 / -0</p>
+          </div>
+
+          <div class="glass-card p-3.5">
+            <p class="text-[11px] font-medium text-slate-400">R-Multiple Trung Bình</p>
+            <p id="statAvgR" class="text-xl font-bold text-slate-900 mt-1">0.00R</p>
+            <p id="statStreaks" class="text-[11px] text-slate-400 mt-0.5">Chuỗi W:0 · L:0</p>
+          </div>
+
+          <div class="glass-card p-3.5">
+            <p class="text-[11px] font-medium text-slate-400">Tuân thủ kỷ luật</p>
+            <p id="statDiscipline" class="text-xl font-bold text-emerald-600 mt-1">0%</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Lệnh đúng kế hoạch</p>
+          </div>
+
+          <div class="glass-card p-3.5">
+            <p class="text-[11px] font-medium text-slate-400">Tổng phí giao dịch</p>
+            <p id="statTotalFees" class="text-xl font-bold text-slate-800 mt-1">0</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Hoa hồng & Swap</p>
+          </div>
+        </div>
+
+        <!-- BIỂU ĐỒ 1: ĐƯỜNG CONG VỐN (EQUITY CURVE) -->
+        <div class="glass-card p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Đường cong vốn (Equity Curve)</h3>
+              <p class="text-[11px] text-slate-400">Biến động tài khoản qua từng lệnh đã đóng</p>
+            </div>
+            <i data-lucide="line-chart" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+          <div class="relative h-60 w-full">
+            <canvas id="equityChart"></canvas>
+          </div>
+        </div>
+
+        <!-- BIỂU ĐỒ 2: LÃI/LỖ THEO CHIẾN LƯỢC HOẶC LOẠI TÀI SẢN -->
+        <div class="glass-card p-4">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h3 class="text-sm font-bold text-slate-900">Lãi/Lỗ theo nhóm</h3>
+            <div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[11px]">
+              <button type="button" id="btnGroupAsset" class="group-toggle px-2.5 py-1 rounded-md font-semibold bg-indigo-600 text-white">Tài sản</button>
+              <button type="button" id="btnGroupStrategy" class="group-toggle px-2.5 py-1 rounded-md font-semibold text-slate-400">Chiến lược</button>
+              <button type="button" id="btnGroupEmotion" class="group-toggle px-2.5 py-1 rounded-md font-semibold text-slate-400">Tâm lý</button>
+            </div>
+          </div>
+          <div class="relative h-60 w-full">
+            <canvas id="groupPnLChart"></canvas>
+          </div>
+        </div>
+
+        <!-- BIỂU ĐỒ 3: TỶ LỆ THẮNG / THUA / HÒA -->
+        <div class="glass-card p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Cơ cấu kết quả lệnh</h3>
+              <p class="text-[11px] text-slate-400">Phân bổ số lượng lệnh Thắng, Thua và Hòa vốn</p>
+            </div>
+            <i data-lucide="pie-chart" class="w-4 h-4 text-indigo-400"></i>
+          </div>
+          <div class="relative h-56 w-full">
+            <canvas id="winLossChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           TAB 3: LỊCH SỬ GIAO DỊCH (TRADE HISTORY & FILTER)
+           ===================================================================== -->
+      <section id="tab-history" class="tab-panel space-y-3.5">
+        <!-- Thanh tìm kiếm và lọc nhanh -->
+        <div class="glass-card p-3.5 space-y-2.5">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input id="filterSearch" type="text" placeholder="Tìm mã tài sản, chiến lược, ghi chú..."
+              class="field-input pl-9 py-2.5 text-sm" />
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <select id="filterAsset" class="field-input py-2 text-xs">
+              <option value="ALL">Tất cả loại tài sản</option>
+              <option value="Crypto">Crypto</option>
+              <option value="Forex">Forex</option>
+              <option value="Chứng khoán VN">Chứng khoán VN</option>
+              <option value="Chứng khoán Mỹ">Chứng khoán Mỹ</option>
+              <option value="Hàng hóa">Hàng hóa</option>
+              <option value="Chỉ số">Chỉ số</option>
+              <option value="Khác">Khác</option>
+            </select>
+            <select id="filterOutcome" class="field-input py-2 text-xs">
+              <option value="ALL">Tất cả kết quả</option>
+              <option value="WIN">Chỉ lệnh Thắng</option>
+              <option value="LOSS">Chỉ lệnh Thua</option>
+              <option value="OPEN">Đang mở (Open)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Số lượng lệnh đang hiển thị -->
+        <div class="flex items-center justify-between px-1 text-xs text-slate-400">
+          <span id="historyCountText">0 giao dịch</span>
+          <span class="text-[11px]">Mới nhất lên trên</span>
+        </div>
+
+        <!-- Danh sách thẻ giao dịch (Render bằng JavaScript) -->
+        <div id="tradeListContainer" class="space-y-3"></div>
+      </section>
+
+      <!-- =====================================================================
+           TAB 4: CÀI ĐẶT, SAO LƯU DỮ LIỆU & CẤU HÌNH AI
+           ===================================================================== -->
+      <section id="tab-settings" class="tab-panel space-y-4">
+        <!-- CẤU HÌNH TÀI KHOẢN -->
+        <div class="glass-card p-4 space-y-3.5">
+          <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="wallet" class="w-4 h-4 text-emerald-600"></i>
+            Cài đặt Tài khoản
+          </h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="settingInitialCapital" class="field-label">Vốn ban đầu</label>
+              <input id="settingInitialCapital" type="number" step="any" class="field-input" value="10000" />
+            </div>
+            <div>
+              <label for="settingCurrency" class="field-label">Đơn vị tiền tệ</label>
+              <select id="settingCurrency" class="field-input">
+                <option value="USD">USD ($)</option>
+                <option value="VND">VND (₫)</option>
+                <option value="USDT">USDT</option>
+              </select>
+            </div>
+          </div>
+          <button id="btnSaveAccount" type="button"
+            class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition">
+            Lưu cài đặt tài khoản
+          </button>
+        </div>
+
+        <!-- CẤU HÌNH AI PHÂN TÍCH (API KEY & PROMPT TÙY CHỈNH) -->
+        <div class="glass-card p-4 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-indigo-600"></i>
+              Cấu hình AI Phân tích
+            </h2>
+            <span class="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Lưu cục bộ</span>
+          </div>
+
+          <div>
+            <label for="aiProvider" class="field-label">Nhà cung cấp AI</label>
+            <select id="aiProvider" class="field-input">
+              <option value="gemini">Google Gemini API</option>
+              <option value="openai">OpenAI API (ChatGPT)</option>
+              <option value="custom">Custom OpenAI-Compatible (DeepSeek / OpenRouter...)</option>
+            </select>
+          </div>
+
+          <!-- Chỉ hiện khi chọn Custom Endpoint -->
+          <div id="customEndpointWrap" class="hidden">
+            <label for="aiCustomUrl" class="field-label">Endpoint URL (HTTPS)</label>
+            <input id="aiCustomUrl" type="url" placeholder="https://api.deepseek.com/v1/chat/completions" class="field-input" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="aiModel" class="field-label">Tên Model</label>
+              <input id="aiModel" type="text" placeholder="gemini-2.5-flash" class="field-input" />
+            </div>
+            <div>
+              <label for="aiApiKey" class="field-label">API Key của bạn</label>
+              <div class="relative">
+                <input id="aiApiKey" type="password" placeholder="Dán API Key vào đây..." class="field-input pr-10" />
+                <button type="button" id="btnToggleApiKey" aria-label="Hiện hoặc ẩn API Key"
+                  class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 p-1">
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label for="aiPrompt" class="field-label mb-0">Prompt phân tích (Có thể tùy chỉnh)</label>
+              <button type="button" id="btnResetPrompt" class="text-[11px] text-indigo-600 hover:text-indigo-700 font-medium">
+                Khôi phục mặc định
+              </button>
+            </div>
+            <textarea id="aiPrompt" rows="5" class="field-input text-xs leading-relaxed"></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <button id="btnSaveAI" type="button"
+              class="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition">
+              Lưu cấu hình AI
+            </button>
+            <button id="btnRunAIFromSettings" type="button"
+              class="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5">
+              <i data-lucide="play" class="w-3.5 h-3.5"></i> Chạy phân tích
+            </button>
+          </div>
+        </div>
+
+        <!-- SAO LƯU, KHÔI PHỤC & XUẤT FILE CSV -->
+        <div class="glass-card p-4 space-y-3">
+          <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="hard-drive-download" class="w-4 h-4 text-sky-600"></i>
+            Sao lưu & Xuất dữ liệu
+          </h2>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Dữ liệu chỉ lưu trong trình duyệt trên máy của bạn. Hãy sao lưu định kỳ để tránh mất dữ liệu khi xóa bộ nhớ trình duyệt.
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button id="btnExportJSON" type="button"
+              class="py-3 px-3.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 text-xs font-semibold transition flex items-center justify-center gap-2">
+              <i data-lucide="download" class="w-4 h-4"></i> Sao lưu về máy (.JSON)
+            </button>
+
+            <button id="btnExportCSV" type="button"
+              class="py-3 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-semibold transition flex items-center justify-center gap-2">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Xuất file Excel (.CSV)
+            </button>
+          </div>
+
+          <!-- Ô chọn file JSON để khôi phục dữ liệu -->
+          <div class="pt-1">
+            <label for="importJsonInput"
+              class="w-full py-3 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="upload" class="w-4 h-4"></i> Khôi phục từ file sao lưu (.JSON)
+            </label>
+            <input id="importJsonInput" type="file" accept=".json,application/json" class="hidden" />
+          </div>
+
+          <div class="pt-2 border-t border-slate-200 grid grid-cols-2 gap-2.5">
+            <button id="btnLoadSample" type="button"
+              class="py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium transition">
+              Nạp dữ liệu mẫu
+            </button>
+            <button id="btnClearAll" type="button"
+              class="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-semibold transition">
+              Xóa toàn bộ sổ
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- =======================================================================
+         THANH ĐIỀU HƯỚNG PHÍA DƯỚI (MOBILE BOTTOM NAVIGATION BAR)
+         ======================================================================= -->
+    <nav class="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-lg border-t border-slate-200 bottom-nav-safe">
+      <div class="mx-auto max-w-2xl grid grid-cols-4 h-16">
+        <button type="button" data-tab="entry"
+          class="nav-btn flex flex-col items-center justify-center gap-1 text-indigo-600 transition">
+          <i data-lucide="plus-circle" class="w-5 h-5"></i>
+          <span class="text-[11px] font-semibold">Ghi chép</span>
+        </button>
+
+        <button type="button" data-tab="analytics"
+          class="nav-btn flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-slate-900 transition">
+          <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+          <span class="text-[11px] font-semibold">Chỉ số</span>
+        </button>
+
+        <button type="button" data-tab="history"
+          class="nav-btn flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-slate-900 transition">
+          <i data-lucide="list-ordered" class="w-5 h-5"></i>
+          <span class="text-[11px] font-semibold">Lịch sử</span>
+        </button>
+
+        <button type="button" data-tab="settings"
+          class="nav-btn flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-slate-900 transition">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+          <span class="text-[11px] font-semibold">Cài đặt</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- =========================================================================
+       POPUP CỬA SỔ NHỎ HIỂN THỊ KẾT QUẢ PHÂN TÍCH AI (AI ANALYSIS MODAL)
+       ========================================================================= -->
+  <div id="aiModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/45 backdrop-blur-sm p-0 sm:p-4">
+    <div class="bg-white border border-slate-200 w-full sm:max-w-lg max-h-[86vh] rounded-t-2xl sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden">
+      <!-- Đầu cửa sổ popup -->
+      <div class="px-4 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
+            <i data-lucide="sparkles" class="w-4 h-4 text-indigo-600"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 leading-tight">Phân tích Nhật ký bằng AI</h3>
+            <p id="aiModalSubtitle" class="text-[11px] text-slate-500">Sẵn sàng phân tích</p>
+          </div>
+        </div>
+        <button id="btnCloseAIModal" type="button" aria-label="Đóng cửa sổ"
+          class="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Thân cửa sổ popup (Cuộn độc lập) -->
+      <div id="aiModalBody" class="p-4 overflow-y-auto flex-1 space-y-3">
+        <!-- Trạng thái đang tải -->
+        <div id="aiLoadingState" class="hidden py-10 flex flex-col items-center justify-center text-center gap-3">
+          <div class="w-9 h-9 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-sm font-medium text-slate-800">AI đang đọc nhật ký và phân tích hành vi...</p>
+          <p class="text-xs text-slate-400">Quá trình này thường mất 5 - 15 giây.</p>
+        </div>
+
+        <!-- Trạng thái lỗi hoặc chưa có API Key -->
+        <div id="aiErrorState" class="hidden p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-800 space-y-2.5">
+          <p id="aiErrorText" class="leading-relaxed text-xs"></p>
+          <button id="btnGoToAISettings" type="button"
+            class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+            Mở Cài đặt API Key
+          </button>
+        </div>
+
+        <!-- Nội dung kết quả AI trả về -->
+        <div id="aiResultContent" class="ai-markdown text-sm"></div>
+      </div>
+
+      <!-- Chân cửa sổ popup -->
+      <div class="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+        <button id="btnCopyAIResult" type="button"
+          class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold transition flex items-center gap-1.5">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i> Sao chép
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="btnReRunAI" type="button"
+            class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center gap-1.5">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Phân tích lại
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       POPUP XÁC NHẬN HÀNH ĐỘNG (THAY THẾ confirm() ĐỂ AN TOÀN TRÊN MỌI TRÌNH DUYỆT)
+       ========================================================================= -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
+    <div class="bg-white border border-slate-200 w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl">
+      <div class="space-y-1.5">
+        <h3 id="confirmTitle" class="text-base font-bold text-slate-900">Xác nhận</h3>
+        <p id="confirmMessage" class="text-xs text-slate-600 leading-relaxed"></p>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5">
+        <button id="btnConfirmCancel" type="button"
+          class="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
+          Hủy bỏ
+        </button>
+        <button id="btnConfirmOk" type="button"
+          class="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition">
+          Xác nhận
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       POPUP XEM CHI TIẾT 1 GIAO DỊCH (DETAIL MODAL)
+       ========================================================================= -->
+  <div id="detailModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-900/45 backdrop-blur-sm p-0 sm:p-4">
+    <div class="bg-white border border-slate-200 w-full sm:max-w-md max-h-[85vh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-4 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <h3 id="detailTitle" class="text-sm font-bold text-slate-900">Chi tiết giao dịch</h3>
+        <button id="btnCloseDetail" type="button" aria-label="Đóng chi tiết"
+          class="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200/70">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="detailBody" class="p-4 overflow-y-auto space-y-3 text-xs"></div>
+    </div>
+  </div>
+
+  <!-- THÔNG BÁO NHANH (TOAST NOTIFICATION) -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-semibold shadow-xl transition">
+    <span id="toastText"></span>
+  </div>
+
+  <!-- =========================================================================
+       PHẦN JAVASCRIPT XỬ LÝ LOGIC ỨNG DỤNG
+       Tất cả các hàm đều có chú thích tiếng Việt chi tiết cơ chế hoạt động
+       ========================================================================= -->
+  <script>
+    (function () {
+      'use strict';
+
+      /* -----------------------------------------------------------------------
+         1. HẰNG SỐ LƯU TRỮ CỤC BỘ & PROMPT MẶC ĐỊNH CHO AI
+         Cơ chế: Lưu toàn bộ dữ liệu vào localStorage của trình duyệt dưới 2 khóa
+         riêng biệt (giao dịch và cài đặt) để dễ sao lưu, khôi phục và quản lý.
+         ----------------------------------------------------------------------- */
+      const STORAGE_KEYS = {
+        TRADES: 'tradelog_vn_trades_v1',
+        SETTINGS: 'tradelog_vn_settings_v1',
+        IS_SAMPLE: 'tradelog_vn_is_sample_v1'
+      };
+
+      // Prompt chuyên sâu được đề xuất sẵn để AI đóng vai chuyên gia phân tích giao dịch
+      const DEFAULT_AI_PROMPT = `Bạn là một chuyên gia quản trị rủi ro và huấn luyện viên tâm lý giao dịch tài chính (Trading Coach) dày dạn kinh nghiệm.
+Hãy đọc toàn bộ các chỉ số tổng hợp và lịch sử giao dịch đính kèm bên dưới, sau đó viết một báo cáo phân tích bằng tiếng Việt thật rõ ràng, thẳng thắn, dễ đọc trên điện thoại theo đúng 5 mục sau:
+1. Đánh giá tổng quan hiệu suất: Nhận xét về Lãi/Lỗ ròng, Win Rate, Profit Factor, Expectancy và Max Drawdown.
+2. Phân tích hành vi & tâm lý giao dịch: Chỉ rõ trạng thái tâm lý nào (FOMO, Revenge, Kỷ luật...) đang làm mất tiền hoặc kiếm tiền tốt nhất, và mức độ tuân thủ kế hoạch.
+3. Điểm mạnh & điểm yếu theo sản phẩm/chiến lược: Loại tài sản, khung thời gian hoặc setup nào đang hiệu quả nhất và kém hiệu quả nhất.
+4. Cảnh báo rủi ro & Quản trị vốn: Phát hiện các dấu hiệu nguy hiểm (ví dụ: không đặt SL, gồng lỗ, chuỗi thua liên tiếp, phí giao dịch quá cao).
+5. Kế hoạch hành động cụ thể: Đề xuất đúng 3 việc ưu tiên cần làm ngay trong 10 giao dịch tiếp theo để cải thiện đường cong vốn.`;
+
+      // Cài đặt mặc định khi người dùng mở ứng dụng lần đầu
+      const DEFAULT_SETTINGS = {
+        initialCapital: 10000,
+        currency: 'USD',
+        aiProvider: 'gemini',
+        aiModel: 'gemini-2.5-flash',
+        aiCustomUrl: '',
+        aiApiKey: '',
+        aiPrompt: DEFAULT_AI_PROMPT
+      };
+
+      /* -----------------------------------------------------------------------
+         2. DỮ LIỆU MẪU BAN ĐẦU (SAMPLE DATA)
+         Cơ chế: Chỉ nạp ở lần mở đầu tiên khi trình duyệt chưa có dữ liệu thật,
+         giúp người dùng thấy ngay cách hoạt động của biểu đồ và các chỉ số.
+         ----------------------------------------------------------------------- */
+      function createSampleTrades() {
+        return [
+          {
+            id: 'sample_1',
+            symbol: 'BTC/USDT',
+            assetClass: 'Crypto',
+            direction: 'Long',
+            status: 'Closed',
+            timeframe: 'H1',
+            entryTime: '2026-11-10T09:15',
+            exitTime: '2026-11-10T16:40',
+            entryPrice: 88200,
+            exitPrice: 90400,
+            sl: 87300,
+            tp: 90500,
+            size: 0.25,
+            fees: 12,
+            pnl: 538,
+            strategy: 'Pullback',
+            session: 'Phiên Âu',
+            emotion: 'Bình tĩnh / Kỷ luật',
+            plan: 'Tuân thủ 100%',
+            notes: 'Giá hồi về vùng hỗ trợ H1 có nến xác nhận, vào đúng kế hoạch và chốt gần TP.'
+          },
+          {
+            id: 'sample_2',
+            symbol: 'XAU/USD',
+            assetClass: 'Hàng hóa',
+            direction: 'Short',
+            status: 'Closed',
+            timeframe: 'M15',
+            entryTime: '2026-11-12T14:20',
+            exitTime: '2026-11-12T15:10',
+            entryPrice: 2645,
+            exitPrice: 2662,
+            sl: 2660,
+            tp: 2615,
+            size: 15,
+            fees: 8,
+            pnl: -263,
+            strategy: 'Breakout',
+            session: 'Giao phiên Âu-Mỹ',
+            emotion: 'FOMO',
+            plan: 'Vi phạm kỷ luật',
+            notes: 'Thấy nến đỏ mạnh liền đuổi giá trước khi ra tin Mỹ, bị quét SL do trượt giá.'
+          },
+          {
+            id: 'sample_3',
+            symbol: 'EUR/USD',
+            assetClass: 'Forex',
+            direction: 'Long',
+            status: 'Closed',
+            timeframe: 'H4',
+            entryTime: '2026-11-14T08:00',
+            exitTime: '2026-11-15T11:30',
+            entryPrice: 1.0720,
+            exitPrice: 1.0815,
+            sl: 1.0680,
+            tp: 1.0820,
+            size: 40000,
+            fees: 7,
+            pnl: 373,
+            strategy: 'Trend Following',
+            session: 'Phiên Âu',
+            emotion: 'Bình tĩnh / Kỷ luật',
+            plan: 'Tuân thủ 100%',
+            notes: 'Xu hướng tăng H4 rõ ràng, giữ lệnh kiên nhẫn theo đúng cấu trúc đỉnh đáy.'
+          },
+          {
+            id: 'sample_4',
+            symbol: 'FPT',
+            assetClass: 'Chứng khoán VN',
+            direction: 'Long',
+            status: 'Closed',
+            timeframe: 'D1',
+            entryTime: '2026-11-16T09:30',
+            exitTime: '2026-11-18T14:15',
+            entryPrice: 132.5,
+            exitPrice: 138.0,
+            sl: 129.0,
+            tp: 140.0,
+            size: 100,
+            fees: 15,
+            pnl: 535,
+            strategy: 'Breakout',
+            session: 'Phiên Á',
+            emotion: 'Bình tĩnh / Kỷ luật',
+            plan: 'Tuân thủ 100%',
+            notes: 'Vượt nền tích lũy với thanh khoản cao, chốt chủ động khi tiệm cận kháng cự.'
+          },
+          {
+            id: 'sample_5',
+            symbol: 'ETH/USDT',
+            assetClass: 'Crypto',
+            direction: 'Short',
+            status: 'Closed',
+            timeframe: 'M15',
+            entryTime: '2026-11-19T21:10',
+            exitTime: '2026-11-19T22:05',
+            entryPrice: 3180,
+            exitPrice: 3245,
+            sl: 3240,
+            tp: 3060,
+            size: 4,
+            fees: 10,
+            pnl: -270,
+            strategy: 'Mean Reversion',
+            session: 'Phiên Mỹ',
+            emotion: 'Trả thù (Revenge)',
+            plan: 'Vi phạm kỷ luật',
+            notes: 'Bắt đỉnh ngược xu hướng chính vì muốn gỡ nhanh, bài học không đánh ngược trend.'
+          },
+          {
+            id: 'sample_6',
+            symbol: 'BTC/USDT',
+            assetClass: 'Crypto',
+            direction: 'Long',
+            status: 'Closed',
+            timeframe: 'H1',
+            entryTime: '2026-11-21T10:00',
+            exitTime: '2026-11-21T19:20',
+            entryPrice: 91500,
+            exitPrice: 93800,
+            sl: 90600,
+            tp: 94000,
+            size: 0.3,
+            fees: 14,
+            pnl: 676,
+            strategy: 'SMC / ICT',
+            session: 'Phiên Mỹ',
+            emotion: 'Bình tĩnh / Kỷ luật',
+            plan: 'Tuân thủ 100%',
+            notes: 'Quét thanh khoản đáy cũ rồi phá vỡ cấu trúc tăng, tỷ lệ R:R hơn 2.5R.'
+          }
+        ];
+      }
+
+      /* -----------------------------------------------------------------------
+         3. TRẠNG THÁI TOÀN CỤC CỦA ỨNG DỤNG (APP STATE)
+         ----------------------------------------------------------------------- */
+      let state = {
+        trades: [],
+        settings: { ...DEFAULT_SETTINGS },
+        isSample: false,
+        activeTab: 'entry',
+        groupChartBy: 'assetClass', // 'assetClass' | 'strategy' | 'emotion'
+        lastAIResultText: '',
+        charts: {
+          equity: null,
+          group: null,
+          winLoss: null
+        },
+        pendingConfirmCallback: null
+      };
+
+      /* -----------------------------------------------------------------------
+         4. HÀM TIỆN ÍCH LƯU/ĐỌC LOCALSTORAGE AN TOÀN (BỌC TRY/CATCH)
+         Cơ chế: Ngăn ứng dụng bị treo nếu trình duyệt chặn localStorage hoặc đầy bộ nhớ.
+         ----------------------------------------------------------------------- */
+      function safeStorageGet(key) {
+        try {
+          return window.localStorage.getItem(key);
+        } catch (err) {
+          return null;
+        }
+      }
+
+      function safeStorageSet(key, value) {
+        try {
+          window.localStorage.setItem(key, value);
+          return true;
+        } catch (err) {
+          showToast('Không thể lưu vào trình duyệt (bộ nhớ bị chặn hoặc đầy).', true);
+          return false;
+        }
+      }
+
+      // Đọc toàn bộ dữ liệu từ trình duyệt khi khởi động ứng dụng
+      function loadDataFromBrowser() {
+        const rawSettings = safeStorageGet(STORAGE_KEYS.SETTINGS);
+        if (rawSettings) {
+          try {
+            state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(rawSettings) };
+          } catch (e) {
+            state.settings = { ...DEFAULT_SETTINGS };
+          }
+        }
+
+        const rawTrades = safeStorageGet(STORAGE_KEYS.TRADES);
+        if (rawTrades !== null) {
+          try {
+            const parsed = JSON.parse(rawTrades);
+            state.trades = Array.isArray(parsed) ? parsed : [];
+            state.isSample = safeStorageGet(STORAGE_KEYS.IS_SAMPLE) === 'true';
+          } catch (e) {
+            state.trades = [];
+            state.isSample = false;
+          }
+        } else {
+          // Lần đầu tiên mở ứng dụng: nạp dữ liệu mẫu để người dùng trải nghiệm ngay
+          state.trades = createSampleTrades();
+          state.isSample = true;
+          saveDataToBrowser();
+        }
+      }
+
+      // Ghi toàn bộ trạng thái hiện tại xuống localStorage của trình duyệt
+      function saveDataToBrowser() {
+        safeStorageSet(STORAGE_KEYS.TRADES, JSON.stringify(state.trades));
+        safeStorageSet(STORAGE_KEYS.SETTINGS, JSON.stringify(state.settings));
+        safeStorageSet(STORAGE_KEYS.IS_SAMPLE, state.isSample ? 'true' : 'false');
+      }
+
+      /* -----------------------------------------------------------------------
+         5. HÀM ĐỊNH DẠNG SỐ TIỀN, NGÀY GIỜ VÀ TÍNH TOÁN CHỈ SỐ R-MULTIPLE
+         ----------------------------------------------------------------------- */
+      function formatMoney(amount, showPlus = false) {
+        const num = Number(amount);
+        if (!Number.isFinite(num)) return '0';
+        const cur = state.settings.currency || 'USD';
+        const sign = num > 0 && showPlus ? '+' : (num < 0 ? '-' : '');
+        const absVal = Math.abs(num);
+
+        if (cur === 'VND') {
+          return sign + Math.round(absVal).toLocaleString('vi-VN') + ' ₫';
+        }
+        const formatted = absVal.toLocaleString('en-US', {
+          minimumFractionDigits: absVal % 1 === 0 ? 0 : 2,
+          maximumFractionDigits: 2
+        });
+        return cur === 'USD' ? `${sign}$${formatted}` : `${sign}${formatted} ${cur}`;
+      }
+
+      // Chuyển chuỗi thời gian ISO ngắn sang dạng dễ đọc trên điện thoại (DD/MM/YYYY HH:mm)
+      function formatDateTime(isoStr) {
+        if (!isoStr) return '--';
+        const d = new Date(isoStr);
+        if (Number.isNaN(d.getTime())) return isoStr;
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+
+      // Lấy thời gian hiện tại theo đúng định dạng của ô input datetime-local
+      function getCurrentLocalDateTime() {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      }
+
+      // Tính R-Multiple thực tế của một lệnh dựa trên khoảng cách Stop Loss
+      function calculateTradeR(trade) {
+        const entry = Number(trade.entryPrice);
+        const sl = Number(trade.sl);
+        const exit = Number(trade.exitPrice);
+        if (!Number.isFinite(entry) || !Number.isFinite(sl) || !Number.isFinite(exit) || sl === 0) return null;
+        const riskPerUnit = Math.abs(entry - sl);
+        if (riskPerUnit <= 0) return null;
+        const rewardPerUnit = trade.direction === 'Long' ? (exit - entry) : (entry - exit);
+        return rewardPerUnit / riskPerUnit;
+      }
+
+      // Tính tỷ lệ R:R dự kiến dựa trên Entry, SL và TP
+      function calculatePlannedRR(direction, entry, sl, tp) {
+        if (!Number.isFinite(entry) || !Number.isFinite(sl) || !Number.isFinite(tp) || sl === 0 || tp === 0) return null;
+        const risk = Math.abs(entry - sl);
+        if (risk <= 0) return null;
+        const reward = direction === 'Long' ? (tp - entry) : (entry - tp);
+        if (reward <= 0) return null;
+        return reward / risk;
+      }
+
+      // Hiển thị thông báo nhanh (Toast) ở phía trên màn hình
+      let toastTimer = null;
+      function showToast(message, isError = false) {
+        const toastEl = document.getElementById('toast');
+        const textEl = document.getElementById('toastText');
+        textEl.textContent = message;
+        // Cập nhật màu thông báo nhanh tương phản rõ trên giao diện nền sáng
+        toastEl.classList.remove('hidden', 'bg-slate-900', 'border-slate-700', 'bg-rose-600', 'border-rose-700', 'text-white');
+        if (isError) {
+          toastEl.classList.add('bg-rose-600', 'border-rose-700', 'text-white');
+        } else {
+          toastEl.classList.add('bg-slate-900', 'border-slate-700', 'text-white');
+        }
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toastEl.classList.add('hidden');
+        }, 2800);
+      }
+
+      // Mở hộp thoại xác nhận tùy chỉnh (thay thế confirm() của trình duyệt)
+      function openConfirmModal(title, message, onConfirm) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        state.pendingConfirmCallback = onConfirm;
+        const modal = document.getElementById('confirmModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeConfirmModal() {
+        const modal = document.getElementById('confirmModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        state.pendingConfirmCallback = null;
+      }
+
+      /* -----------------------------------------------------------------------
+         6. HỆ THỐNG CHUYỂN TAB (NAVIGATION)
+         Cơ chế: Ẩn/hiện panel theo thuộc tính data-tab và vẽ lại biểu đồ khi
+         người dùng mở Tab Chỉ số để đảm bảo Chart.js nhận đúng kích thước màn hình.
+         ----------------------------------------------------------------------- */
+      function switchTab(tabName) {
+        state.activeTab = tabName;
+        document.querySelectorAll('.tab-panel').forEach((panel) => {
+          panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+        });
+
+        document.querySelectorAll('.nav-btn').forEach((btn) => {
+          const isActive = btn.dataset.tab === tabName;
+          // Làm nổi bật tab đang chọn bằng màu xanh Indigo đậm trên thanh điều hướng sáng
+          btn.classList.toggle('text-indigo-600', isActive);
+          btn.classList.toggle('text-slate-500', !isActive);
+        });
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        if (tabName === 'analytics') {
+          renderAnalytics();
+        } else if (tabName === 'history') {
+          renderHistory();
+        } else if (tabName === 'settings') {
+          syncSettingsForm();
+        }
+      }
+
+      /* -----------------------------------------------------------------------
+         7. LOGIC FORM GHI CHÉP GIAO DỊCH (TAB 1)
+         Cơ chế: Cập nhật nút Long/Short, tự tính PnL và R:R theo thời gian thực,
+         lưu lệnh mới hoặc cập nhật lệnh đang chỉnh sửa.
+         ----------------------------------------------------------------------- */
+      function setDirectionUI(dir) {
+        document.getElementById('tradeDirection').value = dir;
+        const btnLong = document.getElementById('btnDirLong');
+        const btnShort = document.getElementById('btnDirShort');
+
+        // Tô màu sáng tương phản rõ cho nút chọn Mua (Long) / Bán (Short)
+        if (dir === 'Long') {
+          btnLong.className = 'dir-btn py-2.5 px-3 rounded-xl font-semibold text-sm border transition flex items-center justify-center gap-1.5 bg-emerald-50 border-emerald-500 text-emerald-700';
+          btnShort.className = 'dir-btn py-2.5 px-3 rounded-xl font-semibold text-sm border transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-500';
+        } else {
+          btnShort.className = 'dir-btn py-2.5 px-3 rounded-xl font-semibold text-sm border transition flex items-center justify-center gap-1.5 bg-rose-50 border-rose-500 text-rose-700';
+          btnLong.className = 'dir-btn py-2.5 px-3 rounded-xl font-semibold text-sm border transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-500';
+        }
+        updateLiveFormMetrics(false);
+      }
+
+      // Tính tự động Lãi/Lỗ và R:R dự kiến khi người dùng nhập giá
+      function updateLiveFormMetrics(forceUpdatePnL = false) {
+        const dir = document.getElementById('tradeDirection').value;
+        const entry = parseFloat(document.getElementById('tradeEntryPrice').value);
+        const exit = parseFloat(document.getElementById('tradeExitPrice').value);
+        const sl = parseFloat(document.getElementById('tradeSL').value);
+        const tp = parseFloat(document.getElementById('tradeTP').value);
+        const size = parseFloat(document.getElementById('tradeSize').value);
+        const fees = parseFloat(document.getElementById('tradeFees').value) || 0;
+        const pnlInput = document.getElementById('tradePnL');
+        const badge = document.getElementById('liveMetricsBadge');
+
+        const plannedRR = calculatePlannedRR(dir, entry, sl, tp);
+        const actualR = calculateTradeR({ direction: dir, entryPrice: entry, sl, exitPrice: exit });
+
+        if (actualR !== null) {
+          badge.textContent = `Thực tế: ${actualR >= 0 ? '+' : ''}${actualR.toFixed(2)}R`;
+          // Đổi nhãn R:R và R thực tế sang nền pastel + chữ đậm cho giao diện sáng
+          badge.className = actualR >= 0
+            ? 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
+        } else if (plannedRR !== null) {
+          badge.textContent = `R:R dự kiến 1:${plannedRR.toFixed(2)}`;
+          badge.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200';
+        } else {
+          badge.textContent = 'R:R --';
+          badge.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600';
+        }
+
+        // Chỉ tự điền PnL khi có đủ Entry, Exit, Size và người dùng bấm tự tính hoặc chưa tự sửa tay
+        if (Number.isFinite(entry) && Number.isFinite(exit) && Number.isFinite(size)) {
+          const rawPnL = dir === 'Long' ? (exit - entry) * size : (entry - exit) * size;
+          const netPnL = Number((rawPnL - fees).toFixed(2));
+          if (forceUpdatePnL || pnlInput.dataset.manual !== 'true') {
+            pnlInput.value = netPnL;
+          }
+        }
+      }
+
+      // Đặt lại form về trạng thái sạch để ghi lệnh mới
+      function resetTradeForm() {
+        document.getElementById('tradeForm').reset();
+        document.getElementById('tradeId').value = '';
+        document.getElementById('tradeEntryTime').value = getCurrentLocalDateTime();
+        document.getElementById('tradeFees').value = '0';
+        document.getElementById('tradePnL').dataset.manual = 'false';
+        setDirectionUI('Long');
+        document.getElementById('editModeBanner').classList.add('hidden');
+        document.getElementById('btnSubmitText').textContent = 'Lưu vào Nhật Ký';
+      }
+
+      // Nạp dữ liệu 1 lệnh cũ vào form để người dùng chỉnh sửa
+      function startEditTrade(tradeId) {
+        const trade = state.trades.find((t) => t.id === tradeId);
+        if (!trade) return;
+
+        document.getElementById('tradeId').value = trade.id;
+        document.getElementById('tradeSymbol').value = trade.symbol || '';
+        document.getElementById('tradeAssetClass').value = trade.assetClass || 'Crypto';
+        document.getElementById('tradeStatus').value = trade.status || 'Closed';
+        document.getElementById('tradeTimeframe').value = trade.timeframe || 'M15';
+        document.getElementById('tradeEntryTime').value = trade.entryTime || '';
+        document.getElementById('tradeExitTime').value = trade.exitTime || '';
+        document.getElementById('tradeEntryPrice').value = trade.entryPrice ?? '';
+        document.getElementById('tradeExitPrice').value = trade.exitPrice ?? '';
+        document.getElementById('tradeSL').value = trade.sl ?? '';
+        document.getElementById('tradeTP').value = trade.tp ?? '';
+        document.getElementById('tradeSize').value = trade.size ?? '';
+        document.getElementById('tradeFees').value = trade.fees ?? 0;
+        document.getElementById('tradePnL').value = trade.pnl ?? '';
+        document.getElementById('tradePnL').dataset.manual = 'true';
+        document.getElementById('tradeStrategy').value = trade.strategy || 'Breakout';
+        document.getElementById('tradeSession').value = trade.session || 'Phiên Âu';
+        document.getElementById('tradeEmotion').value = trade.emotion || 'Bình tĩnh / Kỷ luật';
+        document.getElementById('tradePlan').value = trade.plan || 'Tuân thủ 100%';
+        document.getElementById('tradeNotes').value = trade.notes || '';
+
+        setDirectionUI(trade.direction || 'Long');
+        document.getElementById('editModeText').textContent = `Đang sửa lệnh: ${trade.symbol}`;
+        document.getElementById('editModeBanner').classList.remove('hidden');
+        document.getElementById('btnSubmitText').textContent = 'Cập nhật giao dịch';
+        switchTab('entry');
+      }
+
+      // Xử lý sự kiện khi người dùng bấm nút Lưu giao dịch
+      function handleTradeSubmit(e) {
+        e.preventDefault();
+
+        const existingId = document.getElementById('tradeId').value.trim();
+        const symbol = document.getElementById('tradeSymbol').value.trim().toUpperCase();
+        const entryPrice = parseFloat(document.getElementById('tradeEntryPrice').value);
+        const size = parseFloat(document.getElementById('tradeSize').value);
+
+        if (!symbol || !Number.isFinite(entryPrice) || !Number.isFinite(size)) {
+          showToast('Vui lòng nhập đầy đủ Mã tài sản, Giá vào và Khối lượng.', true);
+          return;
+        }
+
+        const exitPriceVal = document.getElementById('tradeExitPrice').value;
+        const slVal = document.getElementById('tradeSL').value;
+        const tpVal = document.getElementById('tradeTP').value;
+        const pnlVal = document.getElementById('tradePnL').value;
+
+        const tradeRecord = {
+          id: existingId || ('tr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+          symbol,
+          assetClass: document.getElementById('tradeAssetClass').value,
+          direction: document.getElementById('tradeDirection').value,
+          status: document.getElementById('tradeStatus').value,
+          timeframe: document.getElementById('tradeTimeframe').value,
+          entryTime: document.getElementById('tradeEntryTime').value,
+          exitTime: document.getElementById('tradeExitTime').value,
+          entryPrice,
+          exitPrice: exitPriceVal !== '' ? parseFloat(exitPriceVal) : null,
+          sl: slVal !== '' ? parseFloat(slVal) : null,
+          tp: tpVal !== '' ? parseFloat(tpVal) : null,
+          size,
+          fees: parseFloat(document.getElementById('tradeFees').value) || 0,
+          pnl: pnlVal !== '' ? parseFloat(pnlVal) : 0,
+          strategy: document.getElementById('tradeStrategy').value,
+          session: document.getElementById('tradeSession').value,
+          emotion: document.getElementById('tradeEmotion').value,
+          plan: document.getElementById('tradePlan').value,
+          notes: document.getElementById('tradeNotes').value.trim()
+        };
+
+        if (existingId) {
+          const idx = state.trades.findIndex((t) => t.id === existingId);
+          if (idx !== -1) state.trades[idx] = tradeRecord;
+          showToast(`Đã cập nhật lệnh ${symbol}`);
+        } else {
+          state.trades.push(tradeRecord);
+          showToast(`Đã lưu lệnh ${symbol} vào nhật ký`);
+        }
+
+        saveDataToBrowser();
+        resetTradeForm();
+        updateSampleBanner();
+      }
+
+      /* -----------------------------------------------------------------------
+         8. BỘ TÍNH TOÁN CHỈ SỐ HIỆU SUẤT GIAO DỊCH (TRADING METRICS ENGINE)
+         Cơ chế: Lọc các lệnh đã đóng (Closed), sắp xếp theo thứ tự thời gian,
+         sau đó tính Win Rate, Profit Factor, Expectancy, Max Drawdown,
+         Payoff Ratio, R-Multiple trung bình, chuỗi Thắng/Thua và đường cong vốn.
+         ----------------------------------------------------------------------- */
+      function computeMetrics() {
+        const initCap = Number(state.settings.initialCapital) || 0;
+        const closedTrades = state.trades
+          .filter((t) => t.status === 'Closed')
+          .sort((a, b) => new Date(a.exitTime || a.entryTime) - new Date(b.exitTime || b.entryTime));
+
+        const totalClosed = closedTrades.length;
+        let netPnL = 0;
+        let totalFees = 0;
+        let grossProfit = 0;
+        let grossLoss = 0;
+        let wins = 0;
+        let losses = 0;
+        let breakevens = 0;
+        let disciplinedCount = 0;
+
+        let curWinStreak = 0;
+        let maxWinStreak = 0;
+        let curLossStreak = 0;
+        let maxLossStreak = 0;
+
+        let rSum = 0;
+        let rCount = 0;
+
+        // Xây dựng chuỗi dữ liệu Đường cong vốn & tính Max Drawdown
+        let runningEquity = initCap;
+        let peakEquity = initCap;
+        let maxDDAmount = 0;
+        let maxDDPercent = 0;
+
+        const equityLabels = ['Bắt đầu'];
+        const equitySeries = [initCap];
+
+        closedTrades.forEach((t, index) => {
+          const pnl = Number(t.pnl) || 0;
+          const fees = Number(t.fees) || 0;
+          netPnL += pnl;
+          totalFees += fees;
+
+          if (pnl > 0) {
+            wins++;
+            grossProfit += pnl;
+            curWinStreak++;
+            curLossStreak = 0;
+            if (curWinStreak > maxWinStreak) maxWinStreak = curWinStreak;
+          } else if (pnl < 0) {
+            losses++;
+            grossLoss += Math.abs(pnl);
+            curLossStreak++;
+            curWinStreak = 0;
+            if (curLossStreak > maxLossStreak) maxLossStreak = curLossStreak;
+          } else {
+            breakevens++;
+            curWinStreak = 0;
+            curLossStreak = 0;
+          }
+
+          if (t.plan === 'Tuân thủ 100%') disciplinedCount++;
+
+          const rVal = calculateTradeR(t);
+          if (rVal !== null && Number.isFinite(rVal)) {
+            rSum += rVal;
+            rCount++;
+          }
+
+          runningEquity += pnl;
+          if (runningEquity > peakEquity) {
+            peakEquity = runningEquity;
+          }
+          const ddAmount = peakEquity - runningEquity;
+          const ddPercent = peakEquity > 0 ? (ddAmount / peakEquity) * 100 : 0;
+          if (ddAmount > maxDDAmount) maxDDAmount = ddAmount;
+          if (ddPercent > maxDDPercent) maxDDPercent = ddPercent;
+
+          equityLabels.push(`#${index + 1} ${t.symbol}`);
+          equitySeries.push(Number(runningEquity.toFixed(2)));
+        });
+
+        const winRate = totalClosed > 0 ? (wins / totalClosed) * 100 : 0;
+        const lossRate = totalClosed > 0 ? (losses / totalClosed) * 100 : 0;
+        const avgWin = wins > 0 ? grossProfit / wins : 0;
+        const avgLoss = losses > 0 ? grossLoss / losses : 0;
+        const payoffRatio = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? avgWin : 0);
+        const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0);
+        const expectancy = totalClosed > 0 ? ((winRate / 100) * avgWin) - ((lossRate / 100) * avgLoss) : 0;
+        const roi = initCap > 0 ? (netPnL / initCap) * 100 : 0;
+        const avgR = rCount > 0 ? rSum / rCount : 0;
+        const disciplineRate = totalClosed > 0 ? (disciplinedCount / totalClosed) * 100 : 0;
+
+        return {
+          initCap,
+          currentEquity: initCap + netPnL,
+          netPnL,
+          roi,
+          totalClosed,
+          wins,
+          losses,
+          breakevens,
+          winRate,
+          profitFactor,
+          expectancy,
+          avgWin,
+          avgLoss,
+          payoffRatio,
+          maxDDAmount,
+          maxDDPercent,
+          avgR,
+          maxWinStreak,
+          maxLossStreak,
+          totalFees,
+          disciplineRate,
+          equityLabels,
+          equitySeries,
+          closedTrades
+        };
+      }
+
+      /* -----------------------------------------------------------------------
+         9. HIỂN THỊ CHỈ SỐ & VẼ BIỂU ĐỒ CHART.JS (TAB 2)
+         Cơ chế: Cập nhật toàn bộ thẻ số liệu, hủy biểu đồ cũ (destroy) trước khi
+         vẽ lại để tránh hiện tượng chồng chéo hoặc rò rỉ bộ nhớ.
+         ----------------------------------------------------------------------- */
+      function renderAnalytics() {
+        const m = computeMetrics();
+
+        // Cập nhật các thẻ số liệu
+        document.getElementById('statCurrentEquity').textContent = formatMoney(m.currentEquity);
+        document.getElementById('statInitCap').textContent = formatMoney(m.initCap);
+        document.getElementById('statTotalClosed').textContent = m.totalClosed;
+
+        const netPnLEl = document.getElementById('statNetPnL');
+        netPnLEl.textContent = formatMoney(m.netPnL, true);
+        netPnLEl.className = `text-lg font-bold mt-0.5 ${m.netPnL >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+
+        const roiEl = document.getElementById('statROI');
+        roiEl.textContent = `${m.roi >= 0 ? '+' : ''}${m.roi.toFixed(2)}%`;
+        roiEl.className = `text-[11px] font-semibold ${m.roi >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+
+        document.getElementById('statWinRate').textContent = `${m.winRate.toFixed(1)}%`;
+        document.getElementById('statWLCount').textContent = `${m.wins} Thắng · ${m.losses} Thua${m.breakevens ? ` · ${m.breakevens} Hòa` : ''}`;
+
+        document.getElementById('statProfitFactor').textContent =
+          m.profitFactor === Infinity ? '∞' : m.profitFactor.toFixed(2);
+
+        const expEl = document.getElementById('statExpectancy');
+        expEl.textContent = formatMoney(m.expectancy, true);
+        expEl.className = `text-xl font-bold mt-1 ${m.expectancy >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+
+        document.getElementById('statMaxDD').textContent = `-${m.maxDDPercent.toFixed(2)}%`;
+        document.getElementById('statMaxDDVal').textContent = `-${formatMoney(m.maxDDAmount)}`;
+
+        document.getElementById('statPayoff').textContent = m.payoffRatio.toFixed(2);
+        document.getElementById('statAvgWinLoss').textContent = `${formatMoney(m.avgWin, true)} / -${formatMoney(m.avgLoss)}`;
+
+        document.getElementById('statAvgR').textContent = `${m.avgR >= 0 ? '+' : ''}${m.avgR.toFixed(2)}R`;
+        document.getElementById('statStreaks').textContent = `Chuỗi W:${m.maxWinStreak} · L:${m.maxLossStreak}`;
+
+        document.getElementById('statDiscipline').textContent = `${m.disciplineRate.toFixed(0)}%`;
+        document.getElementById('statTotalFees').textContent = formatMoney(m.totalFees);
+
+        // Vẽ 3 biểu đồ Chart.js
+        renderEquityChart(m);
+        renderGroupPnLChart(m.closedTrades);
+        renderWinLossChart(m);
+      }
+
+      // Biểu đồ 1: Đường cong vốn (Equity Curve)
+      function renderEquityChart(m) {
+        const ctx = document.getElementById('equityChart');
+        if (!ctx || typeof Chart === 'undefined') return;
+        if (state.charts.equity) state.charts.equity.destroy();
+
+        const isPositive = m.netPnL >= 0;
+        // Màu đường cong vốn và vùng phủ tối ưu độ tương phản trên nền trắng
+        const lineColor = isPositive ? '#059669' : '#e11d48';
+        const fillColor = isPositive ? 'rgba(5, 150, 105, 0.12)' : 'rgba(225, 29, 72, 0.12)';
+
+        state.charts.equity = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: m.equityLabels,
+            datasets: [{
+              label: 'Vốn tài khoản',
+              data: m.equitySeries,
+              borderColor: lineColor,
+              backgroundColor: fillColor,
+              borderWidth: 2.5,
+              fill: true,
+              tension: 0.28,
+              pointRadius: 3.5,
+              pointBackgroundColor: lineColor,
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 1.5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#0f172a',
+                titleColor: '#ffffff',
+                bodyColor: '#e2e8f0',
+                borderColor: '#334155',
+                borderWidth: 1,
+                callbacks: {
+                  label: (context) => 'Vốn: ' + formatMoney(context.parsed.y)
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#64748b', font: { size: 10 }, maxRotation: 0, autoSkip: true },
+                grid: { display: false }
+              },
+              y: {
+                ticks: { color: '#64748b', font: { size: 10 } },
+                grid: { color: 'rgba(15, 23, 42, 0.07)' }
+              }
+            }
+          }
+        });
+      }
+
+      // Biểu đồ 2: Tổng Lãi/Lỗ nhóm theo Loại tài sản, Chiến lược hoặc Tâm lý
+      function renderGroupPnLChart(closedTrades) {
+        const ctx = document.getElementById('groupPnLChart');
+        if (!ctx || typeof Chart === 'undefined') return;
+        if (state.charts.group) state.charts.group.destroy();
+
+        const keyField = state.groupChartBy;
+        const map = {};
+        closedTrades.forEach((t) => {
+          const label = t[keyField] || 'Khác';
+          map[label] = (map[label] || 0) + (Number(t.pnl) || 0);
+        });
+
+        const labels = Object.keys(map);
+        const values = labels.map((l) => Number(map[l].toFixed(2)));
+        const bgColors = values.map((v) => v >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(244, 63, 94, 0.8)');
+
+        state.charts.group = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels.length ? labels : ['Chưa có dữ liệu'],
+            datasets: [{
+              label: 'Lãi/Lỗ ròng',
+              data: values.length ? values : [0],
+              backgroundColor: bgColors.length ? bgColors : ['#334155'],
+              borderRadius: 6,
+              maxBarThickness: 38
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1e293b',
+                callbacks: {
+                  label: (context) => 'PnL: ' + formatMoney(context.parsed.y, true)
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#64748b', font: { size: 10 } },
+                grid: { display: false }
+              },
+              y: {
+                ticks: { color: '#64748b', font: { size: 10 } },
+                grid: { color: 'rgba(15, 23, 42, 0.07)' }
+              }
+            }
+          }
+        });
+      }
+
+      // Biểu đồ 3: Biểu đồ vòng phân bổ Thắng / Thua / Hòa
+      function renderWinLossChart(m) {
+        const ctx = document.getElementById('winLossChart');
+        if (!ctx || typeof Chart === 'undefined') return;
+        if (state.charts.winLoss) state.charts.winLoss.destroy();
+
+        const hasData = m.totalClosed > 0;
+        state.charts.winLoss = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Thắng', 'Thua', 'Hòa'],
+            datasets: [{
+              data: hasData ? [m.wins, m.losses, m.breakevens] : [1, 0, 0],
+              backgroundColor: hasData ? ['#10b981', '#f43f5e', '#94a3b8'] : ['#e2e8f0'],
+              borderWidth: 0,
+              hoverOffset: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '66%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { color: '#334155', font: { size: 11 }, padding: 14, usePointStyle: true }
+              }
+            }
+          }
+        });
+      }
+
+      /* -----------------------------------------------------------------------
+         10. HIỂN THỊ DANH SÁCH LỊCH SỬ GIAO DỊCH (TAB 3)
+         Cơ chế: Lọc theo từ khóa, loại tài sản, kết quả và render thẻ mobile gọn gàng.
+         Sử dụng kỹ thuật ủy quyền sự kiện (Event Delegation) cho nút Xem/Sửa/Xóa.
+         ----------------------------------------------------------------------- */
+      function escapeHTML(str) {
+        return String(str ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function renderHistory() {
+        const search = document.getElementById('filterSearch').value.trim().toLowerCase();
+        const assetFilter = document.getElementById('filterAsset').value;
+        const outcomeFilter = document.getElementById('filterOutcome').value;
+
+        const filtered = state.trades
+          .filter((t) => {
+            if (assetFilter !== 'ALL' && t.assetClass !== assetFilter) return false;
+            if (outcomeFilter === 'WIN' && !(t.status === 'Closed' && Number(t.pnl) > 0)) return false;
+            if (outcomeFilter === 'LOSS' && !(t.status === 'Closed' && Number(t.pnl) < 0)) return false;
+            if (outcomeFilter === 'OPEN' && t.status !== 'Open') return false;
+            if (search) {
+              const hay = `${t.symbol} ${t.assetClass} ${t.strategy} ${t.emotion} ${t.notes}`.toLowerCase();
+              if (!hay.includes(search)) return false;
+            }
+            return true;
+          })
+          .sort((a, b) => new Date(b.entryTime) - new Date(a.entryTime));
+
+        document.getElementById('historyCountText').textContent = `${filtered.length} giao dịch`;
+        const container = document.getElementById('tradeListContainer');
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="glass-card p-8 text-center space-y-2">
+              <p class="text-sm font-semibold text-slate-700">Chưa tìm thấy giao dịch nào</p>
+              <p class="text-xs text-slate-500">Hãy thêm giao dịch mới ở tab Ghi chép hoặc thay đổi bộ lọc.</p>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = filtered.map((t) => {
+          const pnl = Number(t.pnl) || 0;
+          const isOpen = t.status === 'Open';
+          // Màu thẻ giao dịch trong lịch sử tối ưu cho nền trắng (chữ đậm, nhãn pastel rõ nét)
+          const pnlColor = isOpen ? 'text-sky-600' : (pnl > 0 ? 'text-emerald-600' : (pnl < 0 ? 'text-rose-600' : 'text-slate-600'));
+          const dirBadge = t.direction === 'Long'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : 'bg-rose-50 text-rose-700 border-rose-200';
+          const rVal = calculateTradeR(t);
+          const rBadge = rVal !== null ? `<span class="text-[11px] font-semibold text-slate-500">${rVal >= 0 ? '+' : ''}${rVal.toFixed(2)}R</span>` : '';
+
+          return `
+            <article class="glass-card p-3.5 space-y-2.5">
+              <div class="flex items-start justify-between gap-2">
+                <div class="space-y-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-sm font-bold text-slate-900">${escapeHTML(t.symbol)}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${dirBadge}">${t.direction === 'Long' ? 'LONG' : 'SHORT'}</span>
+                    <span class="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">${escapeHTML(t.assetClass)}</span>
+                  </div>
+                  <p class="text-[11px] text-slate-500">${formatDateTime(t.entryTime)} · ${escapeHTML(t.timeframe)}</p>
+                </div>
+                <div class="text-right shrink-0">
+                  <p class="text-base font-extrabold ${pnlColor}">${isOpen ? 'Đang mở' : formatMoney(pnl, true)}</p>
+                  ${rBadge}
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-1.5 text-[11px]">
+                <span class="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-slate-700">${escapeHTML(t.strategy)}</span>
+                <span class="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-slate-700">${escapeHTML(t.emotion)}</span>
+                <span class="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 ${t.plan === 'Tuân thủ 100%' ? 'text-emerald-700' : 'text-amber-700'}">${escapeHTML(t.plan)}</span>
+              </div>
+
+              ${t.notes ? `<p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">${escapeHTML(t.notes)}</p>` : ''}
+
+              <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button type="button" data-action="detail" data-id="${escapeHTML(t.id)}"
+                  class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition">
+                  Chi tiết
+                </button>
+                <button type="button" data-action="edit" data-id="${escapeHTML(t.id)}"
+                  class="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-medium transition">
+                  Sửa
+                </button>
+                <button type="button" data-action="delete" data-id="${escapeHTML(t.id)}"
+                  class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition">
+                  Xóa
+                </button>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      // Mở cửa sổ xem toàn bộ thông tin chi tiết của 1 lệnh
+      function openTradeDetailModal(tradeId) {
+        const t = state.trades.find((x) => x.id === tradeId);
+        if (!t) return;
+
+        document.getElementById('detailTitle').textContent = `${t.symbol} (${t.direction === 'Long' ? 'Mua / Long' : 'Bán / Short'})`;
+        const rVal = calculateTradeR(t);
+        const rows = [
+          ['Loại tài sản', t.assetClass],
+          ['Trạng thái', t.status === 'Closed' ? 'Đã đóng' : 'Đang mở'],
+          ['Khung thời gian', t.timeframe],
+          ['Thời gian vào', formatDateTime(t.entryTime)],
+          ['Thời gian thoát', formatDateTime(t.exitTime)],
+          ['Giá vào (Entry)', t.entryPrice],
+          ['Giá thoát (Exit)', t.exitPrice ?? '--'],
+          ['Cắt lỗ (SL)', t.sl ?? '--'],
+          ['Chốt lời (TP)', t.tp ?? '--'],
+          ['Khối lượng', t.size],
+          ['Phí giao dịch', formatMoney(t.fees)],
+          ['Lãi / Lỗ ròng', t.status === 'Open' ? 'Đang mở' : formatMoney(t.pnl, true)],
+          ['R-Multiple', rVal !== null ? `${rVal >= 0 ? '+' : ''}${rVal.toFixed(2)}R` : '--'],
+          ['Chiến lược', t.strategy],
+          ['Phiên giao dịch', t.session],
+          ['Tâm lý', t.emotion],
+          ['Tuân thủ kế hoạch', t.plan]
+        ];
+
+        const bodyHtml = `
+          <div class="grid grid-cols-2 gap-2">
+            ${rows.map(([k, v]) => `
+              <!-- Ô hiển thị từng trường thông tin chi tiết trên nền sáng -->
+              <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <p class="text-[10px] text-slate-500">${escapeHTML(k)}</p>
+                <p class="text-xs font-semibold text-slate-900 mt-0.5 break-words">${escapeHTML(v)}</p>
+              </div>
+            `).join('')}
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <p class="text-[10px] text-slate-500 mb-1">Ghi chú & Bài học</p>
+            <p class="text-xs text-slate-800 leading-relaxed whitespace-pre-wrap">${escapeHTML(t.notes || 'Không có ghi chú.')}</p>
+          </div>
+        `;
+        document.getElementById('detailBody').innerHTML = bodyHtml;
+
+        const modal = document.getElementById('detailModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      /* -----------------------------------------------------------------------
+         11. CÀI ĐẶT, SAO LƯU JSON, KHÔI PHỤC JSON & XUẤT FILE CSV (TAB 4)
+         Cơ chế: Tạo Blob ngay trên trình duyệt để tải file về máy mà không cần
+         máy chủ. File CSV có thêm ký tự BOM (\uFEFF) để Excel hiển thị chuẩn tiếng Việt.
+         ----------------------------------------------------------------------- */
+      function syncSettingsForm() {
+        document.getElementById('settingInitialCapital').value = state.settings.initialCapital;
+        document.getElementById('settingCurrency').value = state.settings.currency;
+        document.getElementById('aiProvider').value = state.settings.aiProvider;
+        document.getElementById('aiModel').value = state.settings.aiModel;
+        document.getElementById('aiCustomUrl').value = state.settings.aiCustomUrl || '';
+        document.getElementById('aiApiKey').value = state.settings.aiApiKey || '';
+        document.getElementById('aiPrompt').value = state.settings.aiPrompt || DEFAULT_AI_PROMPT;
+        toggleCustomEndpointField();
+        updateCurrencyUnitLabels();
+      }
+
+      function updateCurrencyUnitLabels() {
+        document.querySelectorAll('.currency-unit').forEach((el) => {
+          el.textContent = state.settings.currency || 'USD';
+        });
+      }
+
+      function toggleCustomEndpointField() {
+        const provider = document.getElementById('aiProvider').value;
+        const wrap = document.getElementById('customEndpointWrap');
+        wrap.classList.toggle('hidden', provider !== 'custom');
+      }
+
+      function downloadFile(filename, content, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      // Sao lưu toàn bộ nhật ký + cài đặt tài khoản thành file JSON về máy
+      function exportBackupJSON() {
+        const payload = {
+          app: 'TradeLog',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          settings: {
+            initialCapital: state.settings.initialCapital,
+            currency: state.settings.currency,
+            aiProvider: state.settings.aiProvider,
+            aiModel: state.settings.aiModel,
+            aiCustomUrl: state.settings.aiCustomUrl,
+            aiPrompt: state.settings.aiPrompt
+            // Không xuất API Key ra file sao lưu để bảo mật cho người dùng
+          },
+          trades: state.trades
+        };
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        downloadFile(`nhat_ky_giao_dich_backup_${dateStamp}.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+        showToast('Đã tải file sao lưu JSON về máy');
+      }
+
+      // Xuất toàn bộ lịch sử giao dịch ra file CSV mở được bằng Excel / Google Sheets
+      function exportTradesCSV() {
+        if (state.trades.length === 0) {
+          showToast('Chưa có giao dịch nào để xuất CSV.', true);
+          return;
+        }
+
+        const headers = [
+          'ID', 'Ma_Tai_San', 'Loai_Tai_San', 'Chieu_Lenh', 'Trang_Thai',
+          'Khung_Thoi_Gian', 'Thoi_Gian_Vao', 'Thoi_Gian_Thoat',
+          'Gia_Vao', 'Gia_Thoat', 'Stop_Loss', 'Take_Profit',
+          'Khoi_Luong', 'Phi', 'Lai_Lo_Rong', 'R_Multiple',
+          'Chien_Luoc', 'Phien', 'Tam_Ly', 'Tuan_Thu_Ke_Hoach', 'Ghi_Chu'
+        ];
+
+        const csvEscape = (val) => {
+          const str = String(val ?? '').replace(/"/g, '""');
+          return `"${str}"`;
+        };
+
+        const lines = [headers.join(',')];
+        state.trades.forEach((t) => {
+          const rVal = calculateTradeR(t);
+          const row = [
+            t.id, t.symbol, t.assetClass, t.direction, t.status,
+            t.timeframe, t.entryTime, t.exitTime,
+            t.entryPrice, t.exitPrice ?? '', t.sl ?? '', t.tp ?? '',
+            t.size, t.fees, t.pnl, rVal !== null ? rVal.toFixed(2) : '',
+            t.strategy, t.session, t.emotion, t.plan, t.notes
+          ].map(csvEscape);
+          lines.push(row.join(','));
+        });
+
+        // Thêm BOM (\uFEFF) đầu file để Excel đọc đúng dấu tiếng Việt
+        const csvContent = '\uFEFF' + lines.join('\r\n');
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        downloadFile(`nhat_ky_giao_dich_${dateStamp}.csv`, csvContent, 'text/csv;charset=utf-8');
+        showToast('Đã xuất file CSV thành công');
+      }
+
+      // Khôi phục dữ liệu từ file sao lưu JSON người dùng chọn trên máy
+      function handleImportJSON(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            const importedTrades = Array.isArray(parsed) ? parsed : parsed.trades;
+            if (!Array.isArray(importedTrades)) {
+              throw new Error('Cấu trúc file sao lưu không hợp lệ.');
+            }
+
+            openConfirmModal(
+              'Khôi phục dữ liệu',
+              `Tìm thấy ${importedTrades.length} giao dịch trong file. Bạn có muốn thay thế dữ liệu hiện tại bằng file sao lưu này không?`,
+              () => {
+                state.trades = importedTrades;
+                state.isSample = false;
+                if (parsed.settings && typeof parsed.settings === 'object') {
+                  state.settings = {
+                    ...state.settings,
+                    ...parsed.settings,
+                    aiApiKey: state.settings.aiApiKey // Giữ nguyên API key hiện có trên máy
+                  };
+                }
+                saveDataToBrowser();
+                syncSettingsForm();
+                updateSampleBanner();
+                renderAnalytics();
+                renderHistory();
+                showToast(`Đã khôi phục ${importedTrades.length} giao dịch`);
+              }
+            );
+          } catch (err) {
+            showToast('File không đúng định dạng sao lưu JSON.', true);
+          } finally {
+            e.target.value = '';
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      /* -----------------------------------------------------------------------
+         12. GỌI API AI PHÂN TÍCH NHẬT KÝ & HIỂN THỊ TRONG CỬA SỔ POPUP
+         Cơ chế: Đóng gói toàn bộ chỉ số tổng hợp + danh sách giao dịch gần nhất
+         cùng Prompt của người dùng, gửi trực tiếp từ trình duyệt tới API (Gemini,
+         OpenAI hoặc Custom HTTPS Endpoint) bằng API Key riêng của người dùng.
+         ----------------------------------------------------------------------- */
+      function buildJournalContextForAI() {
+        const m = computeMetrics();
+        const summary = {
+          donViTienTe: state.settings.currency,
+          vonBanDau: m.initCap,
+          vonHienTai: Number(m.currentEquity.toFixed(2)),
+          laiLoRong: Number(m.netPnL.toFixed(2)),
+          roiPhanTram: Number(m.roi.toFixed(2)),
+          tongLenhDaDong: m.totalClosed,
+          soLenhThang: m.wins,
+          soLenhThua: m.losses,
+          winRatePhanTram: Number(m.winRate.toFixed(2)),
+          profitFactor: m.profitFactor === Infinity ? 'Vo_Cuc' : Number(m.profitFactor.toFixed(2)),
+          expectancyMoiLenh: Number(m.expectancy.toFixed(2)),
+          laiTrungBinh: Number(m.avgWin.toFixed(2)),
+          loTrungBinh: Number(m.avgLoss.toFixed(2)),
+          maxDrawdownPhanTram: Number(m.maxDDPercent.toFixed(2)),
+          avgRMultiple: Number(m.avgR.toFixed(2)),
+          chuoiThangDaiNhat: m.maxWinStreak,
+          chuoiThuaDaiNhat: m.maxLossStreak,
+          tyLeTuanThuKyLuatPhanTram: Number(m.disciplineRate.toFixed(1)),
+          tongPhi: Number(m.totalFees.toFixed(2))
+        };
+
+        // Gửi tối đa 60 lệnh gần nhất để tối ưu token và tốc độ phản hồi
+        const recentTrades = [...state.trades]
+          .sort((a, b) => new Date(b.entryTime) - new Date(a.entryTime))
+          .slice(0, 60)
+          .map((t) => ({
+            ma: t.symbol,
+            loai: t.assetClass,
+            chieu: t.direction,
+            trangThai: t.status,
+            khung: t.timeframe,
+            ngayVao: t.entryTime,
+            pnl: t.pnl,
+            phi: t.fees,
+            rMultiple: calculateTradeR(t) !== null ? Number(calculateTradeR(t).toFixed(2)) : null,
+            chienLuoc: t.strategy,
+            phien: t.session,
+            tamLy: t.emotion,
+            kyLuat: t.plan,
+            ghiChu: t.notes
+          }));
+
+        return `${state.settings.aiPrompt || DEFAULT_AI_PROMPT}
+
+=== CHỈ SỐ TỔNG HỢP ===
+${JSON.stringify(summary, null, 2)}
+
+=== LỊCH SỬ GIAO DỊCH (${recentTrades.length} lệnh gần nhất) ===
+${JSON.stringify(recentTrades, null, 2)}`;
+      }
+
+      // Chuyển đổi Markdown cơ bản của AI sang HTML an toàn để hiển thị đẹp trong Popup
+      function renderSimpleMarkdown(mdText) {
+        const safe = escapeHTML(mdText || '');
+        const lines = safe.split('\n');
+        let html = '';
+        let inList = false;
+
+        lines.forEach((rawLine) => {
+          const line = rawLine.trim();
+          if (!line) {
+            if (inList) { html += '</ul>'; inList = false; }
+            return;
+          }
+
+          const formatted = line
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+          if (formatted.startsWith('### ')) {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += `<h3>${formatted.slice(4)}</h3>`;
+          } else if (formatted.startsWith('## ')) {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += `<h3>${formatted.slice(3)}</h3>`;
+          } else if (formatted.startsWith('# ')) {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += `<h3>${formatted.slice(2)}</h3>`;
+          } else if (/^[-*•]\s+/.test(formatted)) {
+            if (!inList) { html += '<ul class="list-disc">'; inList = true; }
+            html += `<li>${formatted.replace(/^[-*•]\s+/, '')}</li>`;
+          } else if (/^\d+\.\s+/.test(formatted)) {
+            if (!inList) { html += '<ul class="list-disc">'; inList = true; }
+            html += `<li>${formatted}</li>`;
+          } else {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += `<p>${formatted}</p>`;
+          }
+        });
+
+        if (inList) html += '</ul>';
+        return html;
+      }
+
+      function openAIModal() {
+        const modal = document.getElementById('aiModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+
+      function closeAIModal() {
+        const modal = document.getElementById('aiModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      // Thực thi lời gọi API tới nhà cung cấp AI người dùng đã cấu hình
+      async function runAIAnalysis() {
+        openAIModal();
+        const loadingEl = document.getElementById('aiLoadingState');
+        const errorEl = document.getElementById('aiErrorState');
+        const errorTextEl = document.getElementById('aiErrorText');
+        const resultEl = document.getElementById('aiResultContent');
+        const subtitleEl = document.getElementById('aiModalSubtitle');
+
+        errorEl.classList.add('hidden');
+        resultEl.innerHTML = '';
+
+        const apiKey = (state.settings.aiApiKey || '').trim();
+        const provider = state.settings.aiProvider || 'gemini';
+        const model = (state.settings.aiModel || '').trim() || (provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
+
+        if (!apiKey) {
+          loadingEl.classList.add('hidden');
+          errorTextEl.textContent = 'Bạn chưa nhập API Key. Hãy vào tab Cài đặt để dán API Key riêng (Gemini, OpenAI hoặc nhà cung cấp tương thích) rồi thử lại.';
+          errorEl.classList.remove('hidden');
+          subtitleEl.textContent = 'Thiếu API Key';
+          return;
+        }
+
+        if (state.trades.length === 0) {
+          loadingEl.classList.add('hidden');
+          errorTextEl.textContent = 'Nhật ký hiện chưa có giao dịch nào để AI phân tích. Hãy ghi ít nhất 1 giao dịch trước.';
+          errorEl.classList.remove('hidden');
+          subtitleEl.textContent = 'Chưa có dữ liệu';
+          return;
+        }
+
+        loadingEl.classList.remove('hidden');
+        subtitleEl.textContent = `Đang gọi ${provider.toUpperCase()} · ${model}`;
+
+        try {
+          const fullPrompt = buildJournalContextForAI();
+          let replyText = '';
+
+          if (provider === 'gemini') {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: fullPrompt }] }]
+              })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              throw new Error(data?.error?.message || `Lỗi HTTP ${res.status}`);
+            }
+            replyText = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('\n') || 'AI không trả về nội dung.';
+          } else {
+            const endpoint = provider === 'openai'
+              ? 'https://api.openai.com/v1/chat/completions'
+              : (state.settings.aiCustomUrl || '').trim();
+
+            if (!endpoint || !endpoint.startsWith('https://')) {
+              throw new Error('Endpoint URL tùy chỉnh phải bắt đầu bằng https://');
+            }
+
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+              },
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: 'system', content: 'Bạn là chuyên gia phân tích nhật ký giao dịch tài chính, trả lời bằng tiếng Việt súc tích, thực tế.' },
+                  { role: 'user', content: fullPrompt }
+                ],
+                temperature: 0.4
+              })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              throw new Error(data?.error?.message || `Lỗi HTTP ${res.status}`);
+            }
+            replyText = data?.choices?.[0]?.message?.content || 'AI không trả về nội dung.';
+          }
+
+          state.lastAIResultText = replyText;
+          loadingEl.classList.add('hidden');
+          resultEl.innerHTML = renderSimpleMarkdown(replyText);
+          subtitleEl.textContent = `Hoàn tất · ${model}`;
+        } catch (err) {
+          loadingEl.classList.add('hidden');
+          errorTextEl.textContent = `Không thể gọi AI: ${err.message}. Hãy kiểm tra lại API Key, tên Model hoặc kết nối mạng.`;
+          errorEl.classList.remove('hidden');
+          subtitleEl.textContent = 'Gọi API thất bại';
+        }
+      }
+
+      // Sao chép kết quả AI vào bộ nhớ tạm (có cơ chế dự phòng execCommand)
+      function copyAIResult() {
+        if (!state.lastAIResultText) {
+          showToast('Chưa có nội dung phân tích để sao chép.', true);
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(state.lastAIResultText)
+            .then(() => showToast('Đã sao chép kết quả phân tích'))
+            .catch(() => fallbackCopyText(state.lastAIResultText));
+        } else {
+          fallbackCopyText(state.lastAIResultText);
+        }
+      }
+
+      function fallbackCopyText(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast('Đã sao chép kết quả phân tích');
+        } catch (e) {
+          showToast('Trình duyệt không hỗ trợ sao chép tự động.', true);
+        }
+        document.body.removeChild(ta);
+      }
+
+      function updateSampleBanner() {
+        const banner = document.getElementById('sampleBanner');
+        banner.classList.toggle('hidden', !state.isSample);
+      }
+
+      /* -----------------------------------------------------------------------
+         13. GẮN TOÀN BỘ SỰ KIỆN GIAO DIỆN (EVENT LISTENERS) & KHỞI CHẠY
+         Cơ chế: Tất cả nút bấm, ô chọn và biểu mẫu đều gắn listener tập trung
+         tại đây để đảm bảo dễ kiểm soát và không xung đột biến toàn cục.
+         ----------------------------------------------------------------------- */
+      function bindEvents() {
+        // Điều hướng Bottom Nav
+        document.querySelectorAll('.nav-btn').forEach((btn) => {
+          btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        // Nút chọn chiều lệnh Long / Short
+        document.getElementById('btnDirLong').addEventListener('click', () => setDirectionUI('Long'));
+        document.getElementById('btnDirShort').addEventListener('click', () => setDirectionUI('Short'));
+
+        // Tự động cập nhật R:R và PnL khi gõ giá
+        ['tradeEntryPrice', 'tradeExitPrice', 'tradeSL', 'tradeTP', 'tradeSize', 'tradeFees'].forEach((id) => {
+          document.getElementById(id).addEventListener('input', () => updateLiveFormMetrics(false));
+        });
+
+        // Đánh dấu nếu người dùng tự sửa tay ô PnL
+        document.getElementById('tradePnL').addEventListener('input', (e) => {
+          e.target.dataset.manual = 'true';
+        });
+
+        // Nút ép tính lại PnL theo công thức giá
+        document.getElementById('btnAutoCalcPnL').addEventListener('click', () => {
+          document.getElementById('tradePnL').dataset.manual = 'false';
+          updateLiveFormMetrics(true);
+          showToast('Đã tính lại Lãi/Lỗ theo giá');
+        });
+
+        // Lưu giao dịch và Hủy chỉnh sửa
+        document.getElementById('tradeForm').addEventListener('submit', handleTradeSubmit);
+        document.getElementById('btnCancelEdit').addEventListener('click', () => {
+          resetTradeForm();
+          showToast('Đã hủy chế độ chỉnh sửa');
+        });
+
+        // Chuyển đổi nhóm trên biểu đồ cột (Tài sản / Chiến lược / Tâm lý)
+        const groupMap = {
+          btnGroupAsset: 'assetClass',
+          btnGroupStrategy: 'strategy',
+          btnGroupEmotion: 'emotion'
+        };
+        Object.keys(groupMap).forEach((btnId) => {
+          document.getElementById(btnId).addEventListener('click', (e) => {
+            state.groupChartBy = groupMap[btnId];
+            document.querySelectorAll('.group-toggle').forEach((b) => {
+              b.classList.remove('bg-indigo-600', 'text-white');
+              b.classList.add('text-slate-400');
+            });
+            e.currentTarget.classList.add('bg-indigo-600', 'text-white');
+            e.currentTarget.classList.remove('text-slate-400');
+            renderGroupPnLChart(computeMetrics().closedTrades);
+          });
+        });
+
+        // Bộ lọc trong Tab Lịch sử
+        ['filterSearch', 'filterAsset', 'filterOutcome'].forEach((id) => {
+          document.getElementById(id).addEventListener('input', renderHistory);
+          document.getElementById(id).addEventListener('change', renderHistory);
+        });
+
+        // Ủy quyền sự kiện cho các nút Chi tiết / Sửa / Xóa trong danh sách Lịch sử
+        document.getElementById('tradeListContainer').addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-action]');
+          if (!btn) return;
+          const action = btn.dataset.action;
+          const id = btn.dataset.id;
+
+          if (action === 'detail') {
+            openTradeDetailModal(id);
+          } else if (action === 'edit') {
+            startEditTrade(id);
+          } else if (action === 'delete') {
+            const target = state.trades.find((t) => t.id === id);
+            openConfirmModal(
+              'Xóa giao dịch',
+              `Bạn có chắc muốn xóa lệnh ${target ? target.symbol : ''} khỏi nhật ký không?`,
+              () => {
+                state.trades = state.trades.filter((t) => t.id !== id);
+                saveDataToBrowser();
+                renderHistory();
+                showToast('Đã xóa giao dịch');
+              }
+            );
+          }
+        });
+
+        // Đóng modal Chi tiết giao dịch
+        document.getElementById('btnCloseDetail').addEventListener('click', () => {
+          const m = document.getElementById('detailModal');
+          m.classList.add('hidden');
+          m.classList.remove('flex');
+        });
+
+        // Cài đặt Tài khoản
+        document.getElementById('btnSaveAccount').addEventListener('click', () => {
+          const cap = parseFloat(document.getElementById('settingInitialCapital').value);
+          state.settings.initialCapital = Number.isFinite(cap) && cap >= 0 ? cap : 0;
+          state.settings.currency = document.getElementById('settingCurrency').value;
+          saveDataToBrowser();
+          updateCurrencyUnitLabels();
+          showToast('Đã lưu cài đặt tài khoản');
+        });
+
+        // Cài đặt AI
+        document.getElementById('aiProvider').addEventListener('change', (e) => {
+          toggleCustomEndpointField();
+          const modelInput = document.getElementById('aiModel');
+          if (e.target.value === 'gemini') modelInput.value = 'gemini-2.5-flash';
+          else if (e.target.value === 'openai') modelInput.value = 'gpt-4o-mini';
+          else modelInput.value = 'deepseek-chat';
+        });
+
+        document.getElementById('btnToggleApiKey').addEventListener('click', () => {
+          const input = document.getElementById('aiApiKey');
+          input.type = input.type === 'password' ? 'text' : 'password';
+        });
+
+        document.getElementById('btnResetPrompt').addEventListener('click', () => {
+          document.getElementById('aiPrompt').value = DEFAULT_AI_PROMPT;
+          showToast('Đã khôi phục Prompt mặc định');
+        });
+
+        document.getElementById('btnSaveAI').addEventListener('click', () => {
+          state.settings.aiProvider = document.getElementById('aiProvider').value;
+          state.settings.aiModel = document.getElementById('aiModel').value.trim();
+          state.settings.aiCustomUrl = document.getElementById('aiCustomUrl').value.trim();
+          state.settings.aiApiKey = document.getElementById('aiApiKey').value.trim();
+          state.settings.aiPrompt = document.getElementById('aiPrompt').value.trim() || DEFAULT_AI_PROMPT;
+          saveDataToBrowser();
+          showToast('Đã lưu cấu hình AI trên trình duyệt');
+        });
+
+        // Các nút mở và chạy AI phân tích
+        document.getElementById('btnHeaderAI').addEventListener('click', runAIAnalysis);
+        document.getElementById('btnDashboardAI').addEventListener('click', runAIAnalysis);
+        document.getElementById('btnRunAIFromSettings').addEventListener('click', () => {
+          document.getElementById('btnSaveAI').click();
+          runAIAnalysis();
+        });
+        document.getElementById('btnReRunAI').addEventListener('click', runAIAnalysis);
+        document.getElementById('btnCloseAIModal').addEventListener('click', closeAIModal);
+        document.getElementById('btnCopyAIResult').addEventListener('click', copyAIResult);
+        document.getElementById('btnGoToAISettings').addEventListener('click', () => {
+          closeAIModal();
+          switchTab('settings');
+          setTimeout(() => document.getElementById('aiApiKey').focus(), 200);
+        });
+
+        // Sao lưu JSON, Xuất CSV, Khôi phục JSON
+        document.getElementById('btnExportJSON').addEventListener('click', exportBackupJSON);
+        document.getElementById('btnExportCSV').addEventListener('click', exportTradesCSV);
+        document.getElementById('importJsonInput').addEventListener('change', handleImportJSON);
+
+        // Nạp lại dữ liệu mẫu & Xóa dữ liệu mẫu / Xóa toàn bộ
+        document.getElementById('btnClearSample').addEventListener('click', () => {
+          state.trades = [];
+          state.isSample = false;
+          saveDataToBrowser();
+          updateSampleBanner();
+          renderAnalytics();
+          renderHistory();
+          showToast('Đã xóa dữ liệu mẫu, sẵn sàng ghi sổ mới');
+        });
+
+        document.getElementById('btnLoadSample').addEventListener('click', () => {
+          openConfirmModal(
+            'Nạp dữ liệu mẫu',
+            'Hành động này sẽ thay thế danh sách hiện tại bằng 6 giao dịch mẫu để xem thử biểu đồ. Tiếp tục?',
+            () => {
+              state.trades = createSampleTrades();
+              state.isSample = true;
+              saveDataToBrowser();
+              updateSampleBanner();
+              renderAnalytics();
+              renderHistory();
+              showToast('Đã nạp dữ liệu mẫu');
+            }
+          );
+        });
+
+        document.getElementById('btnClearAll').addEventListener('click', () => {
+          openConfirmModal(
+            'Xóa toàn bộ nhật ký',
+            'Toàn bộ giao dịch đang lưu trên trình duyệt sẽ bị xóa vĩnh viễn. Bạn nên sao lưu JSON trước khi xóa.',
+            () => {
+              state.trades = [];
+              state.isSample = false;
+              saveDataToBrowser();
+              updateSampleBanner();
+              renderAnalytics();
+              renderHistory();
+              showToast('Đã xóa toàn bộ nhật ký giao dịch');
+            }
+          );
+        });
+
+        // Modal xác nhận
+        document.getElementById('btnConfirmCancel').addEventListener('click', closeConfirmModal);
+        document.getElementById('btnConfirmOk').addEventListener('click', () => {
+          const cb = state.pendingConfirmCallback;
+          closeConfirmModal();
+          if (typeof cb === 'function') cb();
+        });
+      }
+
+      // Khởi tạo ứng dụng khi DOM đã tải hoàn chỉnh
+      document.addEventListener('DOMContentLoaded', () => {
+        loadDataFromBrowser();
+        syncSettingsForm();
+        resetTradeForm();
+        updateSampleBanner();
+        bindEvents();
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
